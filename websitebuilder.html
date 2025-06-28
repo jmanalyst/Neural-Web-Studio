@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Neural Web Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.2/ace.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f9fafb;
+      color: #1f2937;
+    }
+    header {
+        background-color: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .spinner { border: 6px solid rgba(0, 0, 0, 0.1); border-top: 6px solid #3b82f6; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .palette-option { cursor: pointer; padding: 0.5rem; border-radius: 0.5rem; background-color: #f3f4f6; transition: background-color 0.2s; border: 2px solid transparent; }
+    .palette-option:hover { background-color: #e5e7eb; }
+    .palette-option.selected {
+        border-color: #3b82f6;
+    }
+    
+    #editor-container {
+      height: 600px;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+    }
+
+    .fade-in-element {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .fade-in-element.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-10px); }
+        60% { transform: translateY(-5px); }
+    }
+    .animate-bounce-slow {
+        animation: bounce 2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <div id="loadingScreen" class="fixed inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 hidden">
+    <div class="spinner mb-4"></div>
+    <p id="loading-text" class="text-gray-900 text-lg font-semibold">Generating your website...</p>
+    <p id="status-text" class="text-blue-600 text-sm mt-2 font-medium"></p>
+  </div>
+
+  <header class="sticky top-0 z-40 w-full">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <a href="#" class="text-xl font-bold tracking-tight text-gray-900 uppercase">Neural Web Studio</a>
+        </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="hero" class="relative h-[60vh] flex flex-col items-center justify-center text-center overflow-hidden bg-gray-900">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative z-10 px-4">
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 uppercase">
+                Neural Web Studio
+            </h1>
+            <p class="mt-4 text-lg max-w-2xl mx-auto text-gray-300">Transform Your Ideas into Websites with the Power of AI</p>
+        </div>
+        <div class="absolute bottom-10 z-10">
+            <a href="#form-section" class="animate-bounce-slow inline-block p-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </a>
+        </div>
+    </section>
+
+    <div id="form-section" class="py-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <form id="websiteForm" class="bg-white border border-gray-200 p-6 sm:p-8 rounded-2xl shadow-lg space-y-6 max-w-3xl mx-auto fade-in-element">
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Website Name</label>
+              <input type="text" name="website_name" required class="w-full px-4 py-2 rounded-md bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">What is the website about?</label>
+              <input type="text" name="website_about" required class="w-full px-4 py-2 rounded-md bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Choose a Color Palette</label>
+              <input type="hidden" name="theme" id="selectedTheme" />
+              <div id="paletteContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div class="palette-option" data-theme-name="A modern and professional theme with deep blues, crisp whites, and a touch of light gray."><div class="font-semibold mb-2 text-xs text-gray-600">Modern & Blue</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3 bg-blue-600"></div><div class="w-1/3 bg-gray-900"></div><div class="w-1/3 bg-gray-200"></div></div></div>
+                  <div class="palette-option" data-theme-name="An elegant and luxurious dark theme with charcoal, black, and a shimmering gold accent."><div class="font-semibold mb-2 text-xs text-gray-600">Elegant & Dark</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3 bg-gray-800"></div><div class="w-1/3 bg-black"></div><div class="w-1/3 bg-yellow-400"></div></div></div>
+                  <div class="palette-option" data-theme-name="A vibrant and energetic theme using bold purples and oranges, perfect for a creative or tech startup."><div class="font-semibold mb-2 text-xs text-gray-600">Vibrant & Energetic</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3 bg-purple-600"></div><div class="w-1/3 bg-orange-500"></div><div class="w-1/3 bg-gray-950"></div></div></div>
+                  <div class="palette-option" data-theme-name="An earthy and natural theme with shades of green, brown, and a calm, creamy off-white."><div class="font-semibold mb-2 text-xs text-gray-600">Earthy & Natural</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #386641;"></div><div class="w-1/3" style="background-color: #6A4C3C;"></div><div class="w-1/3" style="background-color: #F2E8CF;"></div></div></div>
+                  <div class="palette-option" data-theme-name="A clean, minimalist theme with soft beige, light gray, and a simple dark text color."><div class="font-semibold mb-2 text-xs text-gray-600">Minimalist & Beige</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #EAE0D5;"></div><div class="w-1/3" style="background-color: #C6C6C6;"></div><div class="w-1/3" style="background-color: #222222;"></div></div></div>
+                  <div class="palette-option" data-theme-name="A playful and friendly pastel theme using soft pinks, baby blues, and mint green."><div class="font-semibold mb-2 text-xs text-gray-600">Playful & Pastel</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #FFC0CB;"></div><div class="w-1/3" style="background-color: #ADD8E6;"></div><div class="w-1/3" style="background-color: #98FF98;"></div></div></div>
+                  <div class="palette-option" data-theme-name="A warm and inviting theme inspired by a sunset, using vibrant oranges, soft pinks, and a deep indigo accent."><div class="font-semibold mb-2 text-xs text-gray-600">Sunset Glow</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3 bg-orange-400"></div><div class="w-1/3 bg-pink-400"></div><div class="w-1/3 bg-indigo-900"></div></div></div>
+                  <div class="palette-option" data-theme-name="A cool, calm, and professional theme with deep teals, light cyans, and a clean sandy off-white."><div class="font-semibold mb-2 text-xs text-gray-600">Ocean Breeze</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3 bg-teal-500"></div><div class="w-1/3 bg-cyan-700"></div><div class="w-1/3 bg-slate-100"></div></div></div>
+                  <div class="palette-option" data-theme-name="A futuristic, cyberpunk-inspired theme with a very dark background, accented with bright neon cyan and magenta."><div class="font-semibold mb-2 text-xs text-gray-600">Tech Noir</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #00FFFF;"></div><div class="w-1/3" style="background-color: #FF00FF;"></div><div class="w-1/3" style="background-color: #1A1A1A;"></div></div></div>
+                  <div class="palette-option" data-theme-name="A serene and natural theme featuring deep forest greens, earthy browns, and a calming stone gray."><div class="font-semibold mb-2 text-xs text-gray-600">Forest Retreat</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #2F4F4F;"></div><div class="w-1/3" style="background-color: #556B2F;"></div><div class="w-1/3" style="background-color: #D2B48C;"></div></div></div>
+                  <div class="palette-option" data-theme-name="An elegant and modern theme with soft, metallic rose gold hues, paired with clean whites, and a dark charcoal text for contrast."><div class="font-semibold mb-2 text-xs text-gray-600">Rose Gold</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #F4CBC6;"></div><div class="w-1/3" style="background-color: #E5AEA4;"></div><div class="w-1/3" style="background-color: #36454F;"></div></div></div>
+                  <div class="palette-option" data-theme-name="A trendy and clean monochrome theme based on mint green, from light pastels to deeper shades, with a dark gray for text."><div class="font-semibold mb-2 text-xs text-gray-600">Monochrome Mint</div><div class="flex h-10 rounded-md overflow-hidden"><div class="w-1/3" style="background-color: #98FF98;"></div><div class="w-1/3" style="background-color: #50C878;"></div><div class="w-1/3" style="background-color: #28282B;"></div></div></div>
+              </div>
+              <p id="theme-error" class="text-red-500 text-sm mt-2 hidden">Please select a theme option.</p>
+          </div>
+          
+          <div class="relative">
+            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center">
+              <span class="bg-white px-2 text-sm text-gray-500">OR</span>
+            </div>
+          </div>
+          <div>
+              <label for="customThemeInput" class="block text-sm font-medium text-gray-700 mb-1">Describe Your Own Theme</label>
+              <input type="text" id="customThemeInput" placeholder="e.g., 'a retro 80s synthwave theme' or 'dark green and gold'" class="w-full px-4 py-2 rounded-md bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Navigation Links</label>
+              <div class="space-y-2">
+                  <div class="grid grid-cols-2 gap-4">
+                    <label class="flex items-center"><input type="checkbox" name="nav_links" value="Home" class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> Home</label>
+                    <label class="flex items-center"><input type="checkbox" name="nav_links" value="About" class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> About</label>
+                    <label class="flex items-center"><input type="checkbox" name="nav_links" value="Services" class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> Services</label>
+                    <label class="flex items-center"><input type="checkbox" name="nav_links" value="Contact" class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> Contact</label>
+                  </div>
+                  <input type="text" name="custom_nav_links" placeholder="Extra links (comma separated) e.g. Blog, FAQ" class="mt-2 w-full px-4 py-2 rounded-md bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              </div>
+          </div>
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Instagram Username <span class="text-gray-400">(optional)</span></label>
+              <input type="text" name="instagram_username" placeholder="yourusername" class="w-full px-4 py-2 rounded-md bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Facebook Username <span class="text-gray-400">(optional)</span></label>
+              <input type="text" name="facebook_username" placeholder="yourusername" class="w-full px-4 py-2 rounded-md bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hero Image Upload <span class="text-gray-400">(optional)</span></label>
+              <input type="file" id="heroImage" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+          </div>
+          <button type="submit" class="w-full bg-gray-900 hover:bg-gray-700 transition duration-300 text-white font-semibold py-3 rounded-lg shadow-md">Generate Website</button>
+        </form>
+    
+        <div id="result-section" class="hidden mt-10 fade-in-element">
+          <div class="max-w-3xl mx-auto">
+              <div id="actions-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button id="downloadButton" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-lg shadow-md transition-colors duration-300">Download HTML</button>
+                  <button id="openButton" class="w-full bg-transparent border border-gray-400 text-gray-700 hover:bg-gray-100 hover:border-gray-500 font-semibold py-3 rounded-lg shadow-sm transition-colors duration-300">Open in New Window</button>
+              </div>
+          </div>
+
+          <div id="editorPreviewSection" class="mt-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div>
+                <h2 class="text-xl font-bold mb-2 text-gray-900">HTML Code Editor</h2>
+                <div id="editor-container"></div>
+              </div>
+              <div>
+                 <h2 class="text-xl font-bold mb-2 text-gray-900">Live Preview</h2>
+                 <iframe id="resultFrame" class="w-full h-[600px] rounded-lg border border-gray-200 bg-white shadow-inner" title="Generated Website"></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+    
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    function debounce(func, timeout = 300){
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { func.apply(this, args); }, timeout);
+      };
+    }
+    
+    // DOM Elements
+    const form = document.getElementById('websiteForm');
+    const resultFrame = document.getElementById('resultFrame');
+    const loadingScreen = document.getElementById('loadingScreen');
+    const statusText = document.getElementById('status-text');
+    const resultSection = document.getElementById('result-section');
+    const downloadButton = document.getElementById('downloadButton');
+    const openButton = document.getElementById('openButton');
+    const paletteContainer = document.getElementById('paletteContainer');
+    const selectedThemeInput = document.getElementById('selectedTheme');
+    const customThemeInput = document.getElementById('customThemeInput');
+    const themeError = document.getElementById('theme-error');
+
+    let lastHTML = '';
+    
+    const editor = ace.edit("editor-container");
+    editor.setTheme("ace/theme/xcode");
+    editor.session.setMode("ace/mode/html");
+    editor.setValue(``, -1);
+    editor.setOptions({
+        fontSize: "14px",
+        useWorker: false 
+    });
+
+    const updatePreview = debounce(() => {
+        const newCode = editor.getValue();
+        resultFrame.srcdoc = newCode;
+        lastHTML = newCode;
+    }, 400);
+
+    editor.session.on('change', updatePreview);
+    
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-in-element').forEach(el => observer.observe(el));
+    
+    const paletteOptions = paletteContainer.querySelectorAll('.palette-option');
+    paletteOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        paletteOptions.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        selectedThemeInput.value = option.getAttribute('data-theme-name');
+        customThemeInput.value = '';
+        themeError.classList.add('hidden');
+      });
+    });
+
+    customThemeInput.addEventListener('input', () => {
+        paletteOptions.forEach(opt => opt.classList.remove('selected'));
+        selectedThemeInput.value = customThemeInput.value;
+        if (customThemeInput.value) {
+            themeError.classList.add('hidden');
+        }
+    });
+
+    function updateEditorAndPreview(newHTML) {
+        lastHTML = newHTML;
+        editor.setValue(newHTML, -1);
+        resultFrame.srcdoc = newHTML;
+    }
+
+    let statusInterval;
+    const statusMessages = [
+        "Parsing your request...",
+        "Contacting AI model...",
+        "Drafting initial structure...",
+        "Styling components...",
+        "Adding modern flourishes...",
+        "Finalizing code...",
+        "Almost there..."
+    ];
+
+    function startStatusUpdates() {
+        let messageIndex = 0;
+        statusText.textContent = statusMessages[messageIndex]; 
+        
+        statusInterval = setInterval(() => {
+            messageIndex++;
+            if (messageIndex < statusMessages.length) {
+                statusText.textContent = statusMessages[messageIndex];
+            } else {
+                statusText.textContent = statusMessages[statusMessages.length - 1];
+            }
+        }, 2000);
+    }
+
+    function stopStatusUpdates() {
+        clearInterval(statusInterval);
+        statusText.textContent = '';
+    }
+
+    const supabase = createClient('https://pxenneilqimuseonzmwb.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4ZW5uZWlscWltdXNlb256bXdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMDMzNzMsImV4cCI6MjA2NjY3OTM3M30.sdlrlB5WeCDoVcrxJmQKLysFauLpJOviIh9seElxBn8');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!selectedThemeInput.value) {
+        themeError.classList.remove('hidden');
+        paletteContainer.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+      loadingScreen.classList.remove('hidden');
+      startStatusUpdates();
+
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      const checkedNavLinks = [...form.querySelectorAll('input[name="nav_links"]:checked')].map(cb => cb.value);
+      if (data.custom_nav_links?.trim()) {
+        const customLinks = data.custom_nav_links.split(',').map(s => s.trim()).filter(Boolean);
+        checkedNavLinks.push(...customLinks);
+      }
+      data.nav_links = checkedNavLinks.join(', ');
+      delete data.custom_nav_links;
+      if (data.instagram_username?.trim()) { data.instagram_link = `https://instagram.com/${data.instagram_username.trim()}`; }
+      if (data.facebook_username?.trim()) { data.facebook_link = `https://facebook.com/${data.facebook_username.trim()}`; }
+      delete data.instagram_username;
+      delete data.facebook_username;
+      const heroImageFile = document.getElementById('heroImage').files[0];
+      if (heroImageFile) {
+        const filePath = `hero-images/${Date.now()}_${heroImageFile.name}`;
+        const { error } = await supabase.storage.from('hero-images').upload(filePath, heroImageFile);
+        if (error) { alert('Failed to upload hero image.'); console.error(error); }
+        else { const { data: publicURLData } = supabase.storage.from('hero-images').getPublicUrl(filePath); data.hero_image_url = publicURLData.publicUrl; }
+      }
+
+      try {
+        const res = await fetch('https://n8n.joemur.com/webhook/generate-website', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const generatedHtml = await res.text();
+        updateEditorAndPreview(generatedHtml);
+        
+        resultSection.classList.remove('hidden');
+        observer.observe(resultSection); 
+
+        setTimeout(() => {
+          resultSection.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+      } catch (err) {
+        alert('Error generating website. Check the n8n webhook or console.');
+        console.error(err);
+      } finally {
+        loadingScreen.classList.add('hidden');
+        stopStatusUpdates();
+      }
+    });
+
+    downloadButton.addEventListener('click', () => {
+      const blob = new Blob([lastHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'generated-website.html';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    openButton.addEventListener('click', () => {
+      const blob = new Blob([lastHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    });
+
+  </script>
+</body>
+</html>
